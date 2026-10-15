@@ -110,3 +110,18 @@ test('score bands follow the Awair app', () => {
   assert.equal(scoreLevel(59), 'poor');
   assert.equal(scoreLevel(0), 'poor');
 });
+
+test('an older Element firmware (1.1.5) gives the same measurements', () => {
+  const reading = readingFromLocal(fixture('local-element-latest-2'));
+  assert.deepEqual(Object.keys(reading.values), [
+    'score',
+    'temperature',
+    'humidity',
+    'co2',
+    'voc',
+    'pm25',
+    'pm10',
+    'dew_point',
+  ]);
+  assert.equal(reading.values.co2, 408, 'co2 (measured) and not co2_est (400)');
+});
