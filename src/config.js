@@ -1,45 +1,98 @@
 // -----------------------------------------------------------------------------
-// Integration configuration.
-//
-// The configuration is filled in by the user in Gladys, from the `config_schema`
-// declared in `gladys-assistant-integration.json`. The SDK fetches it for you
-// (`gladys.getConfig()`) and notifies you of every change through
-// `gladys.onConfigUpdated()`.
-//
-// This module only provides defaults and normalizes the received object, so the
-// rest of the code never has to deal with `undefined`.
+// Configuration: the defaults (mirrors of the manifest `config_schema`
+// defaults, checked by test/manifest.test.js) and the normalization of what
+// the user typed.
 // -----------------------------------------------------------------------------
 
-// Defaults: they MUST stay consistent with the `default` values declared in the
-// `config_schema` of the manifest.
+import { isIP } from 'node:net';
+
+export const LANGUAGES = ['en', 'fr', 'de', 'es'];
+
+// Local refresh choices, in seconds. The sensor itself refreshes /latest every
+// 10 seconds: anything faster would read the same values again.
+export const LOCAL_INTERVALS = ['10', '30', '60', '300'];
+
+// Cloud refresh choices, in minutes. The Hobbyist tier of the Awair developer
+// API allows 300 "latest" calls a day per device: 5 minutes (288 a day) is the
+// fastest pace that stays within it.
+export const CLOUD_INTERVALS = ['5', '10', '15', '30'];
+
 export const DEFAULT_CONFIG = {
-  latitude: 48.8566, // Paris
-  longitude: 2.3522,
-  unit: 'celsius', // 'celsius' | 'fahrenheit'
-  // Seconds between two reads of the polled sensors. Gladys polls at most once
-  // a minute: slower intervals are applied by skipping polls (see
-  // createPoller in src/devices/index.js).
-  poll_frequency: 300,
-  // Reserved key (NOT in config_schema): because the manifest declares both
-  // 'local' and 'cloud' in its `transports` field, Gladys shows a standard
-  // "Prefer the local connection" toggle and sends the user's choice here.
-  // Read-only for the integration; defaults to true.
-  GLADYS_PREFER_LOCAL: true,
+  hosts: '',
+  local_interval: '30',
+  cloud_token: '',
+  cloud_interval: '5',
+  language: 'fr',
 };
 
 /**
- * Merge the user config with the defaults.
- * @param {Record<string, unknown>} raw config returned by the SDK
+ * Normalize the raw configuration values (missing keys, strings typed by
+ * hand). Never throws: a value that makes no sense falls back to its default.
+ * @param {object} [raw]
  */
 export function normalizeConfig(raw = {}) {
+  const values = { ...DEFAULT_CONFIG, ...dropEmpty(raw ?? {}) };
+  const { hosts, invalidHosts } = parseHosts(values.hosts);
   return {
-    ...DEFAULT_CONFIG,
-    ...raw,
-    // Force the types: config may arrive as strings from a form.
-    latitude: Number(raw.latitude ?? DEFAULT_CONFIG.latitude),
-    longitude: Number(raw.longitude ?? DEFAULT_CONFIG.longitude),
-    poll_frequency: Number(raw.poll_frequency ?? DEFAULT_CONFIG.poll_frequency),
-    // The preference is a boolean; anything but an explicit false means true.
-    GLADYS_PREFER_LOCAL: raw.GLADYS_PREFER_LOCAL !== false,
+    hosts,
+    invalidHosts,
+    localIntervalMs: Number(pick(values.local_interval, LOCAL_INTERVALS, '30')) * 1000,
+    cloudToken: typeof values.cloud_token === 'string' ? values.cloud_token.trim() : '',
+    cloudIntervalMs: Number(pick(values.cloud_interval, CLOUD_INTERVALS, '5')) * 60 * 1000,
+    language: pick(values.language, LANGUAGES, 'fr'),
   };
+}
+
+function dropEmpty(raw) {
+  return Object.fromEntries(
+    Object.entries(raw).filter(([, value]) => value !== null && value !== undefined),
+  );
+}
+
+function pick(value, allowed, fallback) {
+  const text = String(value).trim();
+  return allowed.includes(text) ? text : fallback;
+}
+
+/**
+ * Split the "IP addresses" field: commas, semicolons or spaces. An entry may
+ * carry a port (192.0.2.10:8080) or be a host name (awair-elem-1419e1.local);
+ * anything else (a URL with credentials, a path...) is set aside and reported.
+ * @param {unknown} text
+ */
+export function parseHosts(text) {
+  const hosts = [];
+  const invalidHosts = [];
+  for (const entry of String(text ?? '').split(/[\s,;]+/)) {
+    const candidate = entry
+      .trim()
+      .replace(/^http:\/\//i, '')
+      .replace(/\/+$/, '');
+    if (candidate === '') {
+      continue;
+    }
+    if (isHost(candidate)) {
+      if (!hosts.includes(candidate.toLowerCase())) {
+        hosts.push(candidate.toLowerCase());
+      }
+    } else {
+      invalidHosts.push(candidate);
+    }
+  }
+  return { hosts, invalidHosts };
+}
+
+const HOSTNAME =
+  /^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
+
+function isHost(candidate) {
+  const match = candidate.match(/^(.+?)(?::(\d{1,5}))?$/);
+  if (!match) {
+    return false;
+  }
+  const [, host, port] = match;
+  if (port !== undefined && (Number(port) < 1 || Number(port) > 65535)) {
+    return false;
+  }
+  return isIP(host) === 4 || HOSTNAME.test(host);
 }

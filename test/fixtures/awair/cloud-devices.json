@@ -1,0 +1,40 @@
+{
+  "devices": [
+    {
+      "name": "Living Room",
+      "macAddress": "02005E100003",
+      "latitude": 0.0,
+      "preference": "GENERAL",
+      "timezone": "",
+      "roomType": "LIVING_ROOM",
+      "deviceType": "awair",
+      "longitude": 0.0,
+      "spaceType": "HOME",
+      "deviceUUID": "awair_24950",
+      "deviceId": 24950,
+      "locationName": "Chicago, IL"
+    },
+    {
+      "name": "Bedroom",
+      "macAddress": "02005E100004",
+      "preference": "GENERAL",
+      "timezone": "",
+      "roomType": "BEDROOM",
+      "deviceType": "awair-glow",
+      "spaceType": "HOME",
+      "deviceUUID": "awair-glow_24951",
+      "deviceId": 24951
+    },
+    {
+      "name": "Office",
+      "macAddress": "02005E100001",
+      "preference": "GENERAL",
+      "timezone": "",
+      "roomType": "OFFICE",
+      "deviceType": "awair-element",
+      "spaceType": "HOME",
+      "deviceUUID": "awair-element_24947",
+      "deviceId": 24947
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "device_uuid": "awair-omni_18959",
+  "wifi_mac": "02:00:5E:10:00:02",
+  "ip": "192.0.2.6",
+  "netmask": "255.255.255.0",
+  "gateway": "192.0.2.1",
+  "fw_version": "1.8.1",
+  "timezone": "America/Los_Angeles",
+  "display": "score",
+  "led": { "mode": "auto", "brightness": 70 },
+  "power-status": { "battery": 99, "plugged": true }
+}

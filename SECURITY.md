@@ -30,6 +30,19 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+What the integration handles:
+
+- **Stored**: nothing under `/data`. The optional Awair cloud token lives in
+  the Gladys configuration (a `secret` field), never in a file of the
+  container, never in a log line or an error message.
+- **Network**: plain HTTP (no authentication, as the Awair Local API offers
+  none) to the sensors of your local network, on the addresses found by the
+  mDNS relay of Gladys or typed in the configuration; HTTPS to
+  `developer-apis.awair.is` only when a cloud token is set. Every request is a
+  read (`GET`): the integration never changes a sensor setting.
+- **Logs**: the model and id of a sensor and its IP address, never its MAC
+  address, its Wi-Fi name or the token.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+the Awair sensors, their firmware and the Awair cloud.
