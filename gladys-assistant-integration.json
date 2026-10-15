@@ -8,8 +8,8 @@
     "de": "Awair-Luftqualitätssensoren über ihre lokale API: Score, CO2, VOC, PM2.5, Temperatur.",
     "es": "Sensores de calidad del aire Awair por su API local: puntuación, CO2, COV, PM2.5, temperatura."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/guim31/gladys-awair:1.0.0",
+  "version": "1.0.1",
+  "docker_image": "ghcr.io/guim31/gladys-awair:1.0.1",
   "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/guim31/gladys-awair/main/cover.png",
   "categories": ["environment"],

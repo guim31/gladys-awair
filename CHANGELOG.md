@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-15
+
 ### Added
 
 - Awair air quality monitors (Element, Omni, 2nd Edition, Mint, Glow C) read
@@ -28,4 +30,5 @@ the notes of the version's GitHub Release.
 - English, French, German and Spanish for every text, and a user guide in the
   four languages.
 
-[Unreleased]: https://github.com/guim31/gladys-awair/commits/main
+[Unreleased]: https://github.com/guim31/gladys-awair/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/guim31/gladys-awair/releases/tag/v1.0.1
