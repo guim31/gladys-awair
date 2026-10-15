@@ -12,44 +12,20 @@ the notes of the version's GitHub Release.
 
 ### Added
 
-- A working example of scene triggers, scene actions and dashboard widgets
-  (Gladys 5.1.0 or later).
-- `CHANGELOG.md`, rolled by the Release workflow.
-- A GitHub Release for every version, with its changelog section as notes: the
-  Gladys Supervision page links each version to the repository's releases.
-- CI runs the tests on Node 22 and 24, and builds the Docker image.
-- Dependabot keeps the npm dependencies and the GitHub Actions up to date.
-- `SECURITY.md` (how to report a vulnerability) and `CLAUDE.md` (project rules
-  for contributors and coding assistants).
-- Manifest tests: `version` matches `package.json`, `docker_image` is tagged
-  with it, descriptions hold 10 to 100 characters, placeholders are
-  multi-language objects.
-- The latitude and longitude fields show an example value as placeholder.
+- Awair air quality monitors (Element, Omni, 2nd Edition, Mint, Glow C) read
+  over their Local API, one Gladys device per sensor: Awair score, air quality
+  band (good, fair, poor), temperature, humidity, CO2, VOC, PM2.5, PM10, light,
+  noise, dew point and the Omni battery, depending on the model.
+- Automatic discovery through the mDNS relay of Gladys, IP addresses typed by
+  hand, and a "Search for sensors" button that reports what was found.
+- Optional Awair cloud token for the sensors without a Local API
+  (first-generation Awair, Glow), read at the pace the daily quota allows.
+- Dashboard widget "Air quality": score gauge, CO2, PM2.5, temperature,
+  humidity, band and connection.
+- Scene triggers "Awair sensor lost" and "Awair sensor back", and the scene
+  action "Read the air quality", which returns a ready-made sentence and the
+  values.
+- English, French, German and Spanish for every text, and a user guide in the
+  four languages.
 
-### Changed
-
-- Node.js 22 or later is required (Node 20 is end-of-life).
-- Integration SDK 0.15.0. The tests now run against the fake Gladys of the
-  SDK, which refuses the payloads Gladys refuses.
-- The refresh interval is one minute minimum, the fastest Gladys polls a
-  device. The plug's power is only sent when it changes, and every 30
-  minutes otherwise.
-
-### Fixed
-
-- Gladys refused the devices of the Discovery tab: the weather station and
-  the plug declared their poll frequency in seconds instead of one of the
-  values Gladys accepts, and were never polled. They now poll every minute,
-  and the readings follow the refresh interval of the configuration.
-
-- The release commit no longer fails `npm run format:check`: the Release
-  workflow updates the manifest `version` and `docker_image` in place instead
-  of re-printing the whole file with `jq`.
-- The integration can write to `/data`: the image creates the directory owned
-  by the `node` user, a new Docker volume was owned by root.
-- A sub-container running the integration's own image follows it to the new
-  tag at each release, as well as in the manifest of the build summary: it kept
-  the previous tag, which may not exist on the registry. Sub-containers on a
-  third-party image (a broker, a database...) keep theirs.
-
-[Unreleased]: https://github.com/GladysAssistant/integration-template-js/commits/main
+[Unreleased]: https://github.com/guim31/gladys-awair/commits/main

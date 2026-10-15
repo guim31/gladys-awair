@@ -1,93 +1,64 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
-import { DEVICE_BLUEPRINTS } from '../src/devices/index.js';
-import { MOTION_DETECTED_TRIGGER, motionSensor } from '../src/devices/motionSensor.js';
-import { SCENE_ACTIONS } from '../src/scenes.js';
-import { normalizeConfig } from '../src/config.js';
+import { SCENE_ACTION_KEY, airQualityOutputs } from '../src/scenes.js';
+import { ELEMENT_UUID, addAllDevices, createWorld, deviceId } from './helpers/world.js';
 
-const manifest = JSON.parse(
-  await readFile(new URL('../gladys-assistant-integration.json', import.meta.url), 'utf8'),
-);
-const config = normalizeConfig();
-
-const declarationOf = (list, key) => manifest[list].find((entry) => entry.key === key);
-const keysOf = (list) => (list ?? []).map((entry) => entry.key);
-const deviceIdOf = (gladys, key) =>
-  DEVICE_BLUEPRINTS.find((bp) => bp.key === key).deviceExternalId(gladys);
-
-// Let the async interval callback run to completion.
-const flush = () => new Promise((resolve) => setImmediate(resolve));
-
-test('the motion sensor fires one motion_detected event per detection, none on the clear', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
-  const gladys = createFakeGladys();
-  const stopPush = motionSensor.startPush(gladys, config);
-  try {
-    t.mock.timers.tick(60_000);
-    await flush();
-    assert.equal(gladys.fake.sceneEvents.length, 1, 'one detection, one event');
-    assert.equal(gladys.fake.sceneEvents[0].key, MOTION_DETECTED_TRIGGER);
-    assert.equal(gladys.fake.states.at(-1).state, 1, 'the state is still published');
-
-    t.mock.timers.tick(10_000);
-    await flush();
-    assert.equal(gladys.fake.states.at(-1).state, 0, 'the detection is cleared');
-    assert.equal(gladys.fake.sceneEvents.length, 1, 'the clear fires no event');
-  } finally {
-    stopPush();
-  }
+test('"Read the air quality" reads the sensor now and returns a sentence and the values', async () => {
+  const { gladys, network } = await createWorld();
+  await addAllDevices(gladys);
+  network.sensors['192.0.2.5'].latest.co2 = 1012;
+  const ack = await gladys.fake.sceneAction(SCENE_ACTION_KEY, { device: deviceId(ELEMENT_UUID) });
+  assert.equal(ack.success, true, ack.error);
+  assert.deepEqual(ack.data.outputs, {
+    score: 94,
+    level: 'good',
+    co2: 1012,
+    pm25: 2,
+    temperature: 23.6,
+    humidity: 56.5,
+    summary:
+      "Awair Element 24947 : qualité de l'air bonne (score 94/100), CO2 1012 ppm, " +
+      "PM2.5 2 µg/m³, 23,6 °C, 56,5 % d'humidité.",
+  });
 });
 
-test('motion_detected data only carries keys the trigger declares', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
-  const gladys = createFakeGladys();
-  const stopPush = motionSensor.startPush(gladys, config);
-  try {
-    t.mock.timers.tick(60_000);
-    await flush();
-  } finally {
-    stopPush();
-  }
-  const [{ data }] = gladys.fake.sceneEvents;
-  const trigger = declarationOf('scene_triggers', MOTION_DETECTED_TRIGGER);
-  // The core keeps the `fields` keys (filters) and the `variables` keys
-  // (exposed to the scene): any other key would be silently dropped.
-  const declared = [...keysOf(trigger.fields), ...keysOf(trigger.variables)];
-  for (const [key, value] of Object.entries(data)) {
-    assert.ok(declared.includes(key), `data.${key} is not declared, the core would drop it`);
-    assert.ok(value === null || typeof value !== 'object', `data.${key} must be a primitive`);
-  }
-  // A `"source": "devices"` filter stores a device external_id.
-  assert.equal(data.device, deviceIdOf(gladys, 'motion-sensor'));
-  const targets = trigger.fields.find((field) => field.key === 'target').options;
-  assert.ok(
-    targets.some((option) => option.value === data.target),
-    `data.target "${data.target}" must be one of the filter options`,
+test('the sentence follows the language of the configuration', () => {
+  const reading = { values: { score: 65, co2: 820, temperature: 21.25, humidity: 40 } };
+  assert.equal(
+    airQualityOutputs('Office', reading, 'en').summary,
+    'Office: air quality fair (score 65/100), CO2 820 ppm, 21.3 °C, 40 % humidity.',
   );
+  assert.equal(
+    airQualityOutputs('Büro', reading, 'de').summary,
+    'Büro: Luftqualität mäßig (Score 65/100), CO2 820 ppm, 21,3 °C, 40 % Luftfeuchtigkeit.',
+  );
+  assert.equal(
+    airQualityOutputs('Oficina', reading, 'es').summary,
+    'Oficina: calidad del aire regular (puntuación 65/100), CO2 820 ppm, 21,3 °C, 40 % de humedad.',
+  );
+  // A first-generation Awair: its dust sensor stands in for PM2.5.
+  assert.equal(airQualityOutputs('Salon', { values: { score: 50, dust: 14.3 } }, 'fr').pm25, 14.3);
 });
 
-test('identify_device signals the chosen device and returns the declared outputs', async () => {
-  const gladys = createFakeGladys();
-  const outputs = await SCENE_ACTIONS.identify_device(gladys, {
-    fields: { device: deviceIdOf(gladys, 'light') },
-    config,
-  });
-  assert.deepEqual(outputs, { signalled: true });
-  const declared = keysOf(declarationOf('scene_actions', 'identify_device').outputs);
-  for (const key of Object.keys(outputs)) {
-    assert.ok(declared.includes(key), `output "${key}" is not declared, the core would drop it`);
+test('an unknown device or a lost sensor fails the action with a readable message', async () => {
+  const now = (() => {
+    let time = Date.parse('2026-10-15T08:00:00Z');
+    const fn = () => time;
+    fn.advance = (ms) => (time += ms);
+    return fn;
+  })();
+  const { gladys, hub, network } = await createWorld({ now, config: { language: 'en' } });
+  await addAllDevices(gladys);
+  const unknown = await gladys.fake.sceneAction(SCENE_ACTION_KEY, { device: 'ext:x:y' });
+  assert.equal(unknown.success, false);
+  assert.match(unknown.error, /not an Awair sensor/);
+
+  network.sensors['192.0.2.5'].down = true;
+  for (let i = 0; i < 3; i += 1) {
+    now.advance(30000);
+    await hub.tick();
   }
-});
-
-test('identify_device reports a device that cannot signal itself through its output', async () => {
-  // Not a failure: a scene action is never a condition, the scene author
-  // gates the following actions on the output instead.
-  const gladys = createFakeGladys();
-  const outputs = await SCENE_ACTIONS.identify_device(gladys, {
-    fields: { device: deviceIdOf(gladys, 'weather-station') },
-    config,
-  });
-  assert.deepEqual(outputs, { signalled: false });
+  const lost = await gladys.fake.sceneAction(SCENE_ACTION_KEY, { device: deviceId(ELEMENT_UUID) });
+  assert.equal(lost.success, false);
+  assert.match(lost.error, /no recent reading/);
 });

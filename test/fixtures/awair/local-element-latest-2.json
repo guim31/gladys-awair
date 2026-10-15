@@ -1,0 +1,16 @@
+{
+  "timestamp": "2020-08-31T22:07:03.831Z",
+  "score": 93,
+  "dew_point": 11.11,
+  "temp": 19.59,
+  "humid": 58.05,
+  "abs_humid": 9.77,
+  "co2": 408,
+  "co2_est": 400,
+  "voc": 159,
+  "voc_baseline": 2533859097,
+  "voc_h2_raw": 28,
+  "voc_ethanol_raw": 40,
+  "pm25": 2,
+  "pm10_est": 3
+}

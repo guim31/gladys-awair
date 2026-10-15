@@ -1,0 +1,25 @@
+{
+  "dobDay": 1,
+  "usages": [
+    { "scope": "API_USAGE", "usage": 302 },
+    { "scope": "USER_DEVICE_LIST", "usage": 50 },
+    { "scope": "USER_INFO", "usage": 80 },
+    { "scope": "LATEST", "usage": 12 }
+  ],
+  "tier": "Hobbyist",
+  "email": "user@example.com",
+  "dobYear": 2000,
+  "permissions": [
+    { "scope": "USER_DEVICE_LIST", "quota": 2147483647 },
+    { "scope": "USER_INFO", "quota": 2147483647 },
+    { "scope": "FIFTEEN_MIN", "quota": 100 },
+    { "scope": "FIVE_MIN", "quota": 300 },
+    { "scope": "RAW", "quota": 500 },
+    { "scope": "LATEST", "quota": 300 }
+  ],
+  "dobMonth": 1,
+  "sex": "UNKNOWN",
+  "lastName": "Doe",
+  "firstName": "Jane",
+  "id": "10001"
+}

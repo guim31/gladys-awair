@@ -1,147 +1,335 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Awair",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Awair air quality monitors over their Local API: score, CO2, VOC, PM2.5, temperature, humidity.",
+    "fr": "Capteurs de qualité de l'air Awair par leur API locale : score, CO2, COV, PM2.5, température.",
+    "de": "Awair-Luftqualitätssensoren über ihre lokale API: Score, CO2, VOC, PM2.5, Temperatur.",
+    "es": "Sensores de calidad del aire Awair por su API local: puntuación, CO2, COV, PM2.5, temperatura."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-awair:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-awair/main/cover.png",
+  "categories": ["environment"],
+  "transports": ["local"],
+  "network_discovery": [{ "type": "mdns", "service": "_http._tcp" }],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Finding your sensors",
+        "fr": "Trouver vos capteurs",
+        "de": "Deine Sensoren finden",
+        "es": "Encontrar sus sensores"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "First enable the Local API of each sensor in the Awair Home app (Awair+, Awair APIs, Local API). Sensors on the same network as Gladys are then found automatically (mDNS): open the Discovery tab. If one is missing, enter its IP address below.",
+        "fr": "Activez d'abord la Local API de chaque capteur dans l'application Awair Home (Awair+, Awair APIs, Local API). Les capteurs du même réseau que Gladys sont alors trouvés automatiquement (mDNS) : ouvrez l'onglet Découverte. S'il en manque un, saisissez son adresse IP ci-dessous.",
+        "de": "Aktiviere zuerst die Local API jedes Sensors in der App Awair Home (Awair+, Awair APIs, Local API). Sensoren im selben Netzwerk wie Gladys werden dann automatisch gefunden (mDNS): Öffne den Tab „Entdecken“. Fehlt einer, gib unten seine IP-Adresse ein.",
+        "es": "Active primero la Local API de cada sensor en la aplicación Awair Home (Awair+, Awair APIs, Local API). Los sensores de la misma red que Gladys se encuentran entonces automáticamente (mDNS): abra la pestaña Descubrir. Si falta alguno, introduzca su dirección IP a continuación."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/guim31/gladys-awair/blob/main/docs/en.md",
+          "label": {
+            "en": "Setup guide",
+            "fr": "Guide d'installation",
+            "de": "Installationsanleitung",
+            "es": "Guía de instalación"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "hosts",
+      "type": "string",
+      "label": {
+        "en": "Sensor IP addresses",
+        "fr": "Adresses IP des capteurs",
+        "de": "IP-Adressen der Sensoren",
+        "es": "Direcciones IP de los sensores"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "description": {
+        "en": "Optional, separated by commas. Only needed for the sensors automatic discovery does not find.",
+        "fr": "Facultatif, séparées par des virgules. Seulement pour les capteurs que la découverte automatique ne trouve pas.",
+        "de": "Optional, durch Kommas getrennt. Nur für Sensoren nötig, die die automatische Erkennung nicht findet.",
+        "es": "Opcional, separadas por comas. Solo para los sensores que el descubrimiento automático no encuentra."
+      },
+      "placeholder": {
+        "en": "e.g. 192.168.1.40, 192.168.1.41",
+        "fr": "ex. 192.168.1.40, 192.168.1.41",
+        "de": "z. B. 192.168.1.40, 192.168.1.41",
+        "es": "p. ej. 192.168.1.40, 192.168.1.41"
+      },
+      "required": false
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
-      },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
-    },
-    {
-      "key": "unit",
+      "key": "local_interval",
       "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
+      "label": {
+        "en": "Local refresh interval",
+        "fr": "Intervalle de rafraîchissement local",
+        "de": "Lokales Aktualisierungsintervall",
+        "es": "Intervalo de actualización local"
+      },
+      "description": {
+        "en": "How often the sensors are read over the network. The sensor itself updates every 10 seconds.",
+        "fr": "Fréquence de lecture des capteurs sur le réseau. Le capteur lui-même se met à jour toutes les 10 secondes.",
+        "de": "Wie oft die Sensoren über das Netzwerk gelesen werden. Der Sensor selbst aktualisiert alle 10 Sekunden.",
+        "es": "Frecuencia de lectura de los sensores en la red. El propio sensor se actualiza cada 10 segundos."
+      },
       "required": false,
-      "default": "celsius",
+      "default": "30",
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        {
+          "value": "10",
+          "label": {
+            "en": "10 seconds",
+            "fr": "10 secondes",
+            "de": "10 Sekunden",
+            "es": "10 segundos"
+          }
+        },
+        {
+          "value": "30",
+          "label": {
+            "en": "30 seconds",
+            "fr": "30 secondes",
+            "de": "30 Sekunden",
+            "es": "30 segundos"
+          }
+        },
+        {
+          "value": "60",
+          "label": { "en": "1 minute", "fr": "1 minute", "de": "1 Minute", "es": "1 minuto" }
+        },
+        {
+          "value": "300",
+          "label": { "en": "5 minutes", "fr": "5 minutes", "de": "5 Minuten", "es": "5 minutos" }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "key": "cloud",
+      "type": "section",
+      "label": {
+        "en": "Awair cloud (optional)",
+        "fr": "Cloud Awair (facultatif)",
+        "de": "Awair-Cloud (optional)",
+        "es": "Nube de Awair (opcional)"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Only for the sensors without a Local API (first-generation Awair, Glow): paste the token of the Awair developer console. Its daily quota limits the pace: 5 minutes at best. Sensors reachable locally are always read locally.",
+        "fr": "Seulement pour les capteurs sans Local API (Awair première génération, Glow) : collez le jeton de la console développeur Awair. Son quota quotidien limite le rythme : 5 minutes au mieux. Les capteurs joignables en local sont toujours lus en local.",
+        "de": "Nur für Sensoren ohne Local API (Awair der ersten Generation, Glow): Füge das Token der Awair-Entwicklerkonsole ein. Sein Tageskontingent begrenzt das Tempo: höchstens alle 5 Minuten. Lokal erreichbare Sensoren werden immer lokal gelesen.",
+        "es": "Solo para los sensores sin Local API (Awair de primera generación, Glow): pegue el token de la consola de desarrollador de Awair. Su cuota diaria limita el ritmo: 5 minutos como mínimo. Los sensores accesibles en local siempre se leen en local."
+      },
+      "links": [
+        {
+          "url": "https://developer.getawair.com/",
+          "label": {
+            "en": "Awair developer console",
+            "fr": "Console développeur Awair",
+            "de": "Awair-Entwicklerkonsole",
+            "es": "Consola de desarrollador de Awair"
+          }
+        }
+      ]
+    },
+    {
+      "key": "cloud_token",
+      "type": "secret",
+      "label": {
+        "en": "Awair access token",
+        "fr": "Jeton d'accès Awair",
+        "de": "Awair-Zugangstoken",
+        "es": "Token de acceso de Awair"
+      },
+      "required": false
+    },
+    {
+      "key": "cloud_interval",
+      "type": "select",
+      "label": {
+        "en": "Cloud refresh interval",
+        "fr": "Intervalle de rafraîchissement cloud",
+        "de": "Cloud-Aktualisierungsintervall",
+        "es": "Intervalo de actualización de la nube"
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": "5",
+      "options": [
+        {
+          "value": "5",
+          "label": { "en": "5 minutes", "fr": "5 minutes", "de": "5 Minuten", "es": "5 minutos" }
+        },
+        {
+          "value": "10",
+          "label": {
+            "en": "10 minutes",
+            "fr": "10 minutes",
+            "de": "10 Minuten",
+            "es": "10 minutos"
+          }
+        },
+        {
+          "value": "15",
+          "label": {
+            "en": "15 minutes",
+            "fr": "15 minutes",
+            "de": "15 Minuten",
+            "es": "15 minutos"
+          }
+        },
+        {
+          "value": "30",
+          "label": {
+            "en": "30 minutes",
+            "fr": "30 minutes",
+            "de": "30 Minuten",
+            "es": "30 minutos"
+          }
+        }
+      ]
+    },
+    {
+      "key": "language",
+      "type": "select",
+      "label": {
+        "en": "Language of the integration",
+        "fr": "Langue de l'intégration",
+        "de": "Sprache der Integration",
+        "es": "Idioma de la integración"
+      },
+      "description": {
+        "en": "Names of the features of a newly added device, and texts of the scene action.",
+        "fr": "Noms des fonctionnalités des appareils ajoutés ensuite, et textes de l'action de scène.",
+        "de": "Namen der Funktionen neu hinzugefügter Geräte und Texte der Szenenaktion.",
+        "es": "Nombres de las funciones de los dispositivos añadidos después y textos de la acción de escena."
+      },
+      "required": false,
+      "default": "fr",
+      "options": [
+        {
+          "value": "en",
+          "label": { "en": "English", "fr": "Anglais", "de": "Englisch", "es": "Inglés" }
+        },
+        {
+          "value": "fr",
+          "label": { "en": "French", "fr": "Français", "de": "Französisch", "es": "Francés" }
+        },
+        {
+          "value": "de",
+          "label": { "en": "German", "fr": "Allemand", "de": "Deutsch", "es": "Alemán" }
+        },
+        {
+          "value": "es",
+          "label": { "en": "Spanish", "fr": "Espagnol", "de": "Spanisch", "es": "Español" }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
+      "key": "search",
+      "label": {
+        "en": "Search for sensors",
+        "fr": "Rechercher les capteurs",
+        "de": "Sensoren suchen",
+        "es": "Buscar sensores"
+      },
+      "timeout_seconds": 60
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "sensor_offline",
+      "label": {
+        "en": "Awair sensor lost",
+        "fr": "Capteur Awair perdu",
+        "de": "Awair-Sensor verloren",
+        "es": "Sensor Awair perdido"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "The sensor stopped answering (three failed reads in a row): unplugged, out of Wi-Fi.",
+        "fr": "Le capteur ne répond plus (trois lectures ratées de suite) : débranché, hors Wi-Fi.",
+        "de": "Der Sensor antwortet nicht mehr (drei Lesefehler in Folge): ausgesteckt, kein WLAN.",
+        "es": "El sensor ya no responde (tres lecturas fallidas seguidas): desenchufado, sin wifi."
       },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
-        },
-        {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
-          ]
+          "label": { "en": "Sensor", "fr": "Capteur", "de": "Sensor", "es": "Sensor" }
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "device_name",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Sensor name",
+            "fr": "Nom du capteur",
+            "de": "Name des Sensors",
+            "es": "Nombre del sensor"
+          }
+        }
+      ]
+    },
+    {
+      "key": "sensor_online",
+      "label": {
+        "en": "Awair sensor back",
+        "fr": "Capteur Awair de retour",
+        "de": "Awair-Sensor wieder da",
+        "es": "Sensor Awair de vuelta"
+      },
+      "description": {
+        "en": "A sensor counted as lost answers again.",
+        "fr": "Un capteur compté comme perdu répond à nouveau.",
+        "de": "Ein als verloren gezählter Sensor antwortet wieder.",
+        "es": "Un sensor considerado perdido vuelve a responder."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": { "en": "Sensor", "fr": "Capteur", "de": "Sensor", "es": "Sensor" }
+        }
+      ],
+      "variables": [
+        {
+          "key": "device_name",
+          "type": "string",
+          "label": {
+            "en": "Sensor name",
+            "fr": "Nom du capteur",
+            "de": "Name des Sensors",
+            "es": "Nombre del sensor"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
+      "key": "read_air_quality",
+      "label": {
+        "en": "Read the air quality",
+        "fr": "Lire la qualité de l'air",
+        "de": "Luftqualität lesen",
+        "es": "Leer la calidad del aire"
+      },
       "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+        "en": "Reads the sensor now and gives a ready-made sentence and the values for the next actions.",
+        "fr": "Lit le capteur maintenant et donne une phrase toute faite et les valeurs aux actions suivantes.",
+        "de": "Liest den Sensor jetzt und gibt den nächsten Aktionen einen fertigen Satz und die Werte.",
+        "es": "Lee el sensor ahora y da una frase preparada y los valores a las acciones siguientes."
       },
       "timeout_seconds": 15,
       "fields": [
@@ -149,29 +337,99 @@
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
+          "label": { "en": "Sensor", "fr": "Capteur", "de": "Sensor", "es": "Sensor" },
           "required": true
         }
       ],
       "outputs": [
         {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "key": "summary",
+          "type": "string",
+          "label": { "en": "Summary", "fr": "Résumé", "de": "Zusammenfassung", "es": "Resumen" }
+        },
+        {
+          "key": "score",
+          "type": "number",
+          "label": {
+            "en": "Awair score",
+            "fr": "Score Awair",
+            "de": "Awair-Score",
+            "es": "Puntuación Awair"
+          }
+        },
+        {
+          "key": "level",
+          "type": "string",
+          "label": {
+            "en": "Level (good, fair, poor)",
+            "fr": "Niveau (good, fair, poor)",
+            "de": "Stufe (good, fair, poor)",
+            "es": "Nivel (good, fair, poor)"
+          }
+        },
+        {
+          "key": "co2",
+          "type": "number",
+          "label": { "en": "CO2 (ppm)", "fr": "CO2 (ppm)", "de": "CO2 (ppm)", "es": "CO2 (ppm)" }
+        },
+        {
+          "key": "pm25",
+          "type": "number",
+          "label": {
+            "en": "PM2.5 (µg/m³)",
+            "fr": "PM2.5 (µg/m³)",
+            "de": "PM2.5 (µg/m³)",
+            "es": "PM2.5 (µg/m³)"
+          }
+        },
+        {
+          "key": "temperature",
+          "type": "number",
+          "label": {
+            "en": "Temperature (°C)",
+            "fr": "Température (°C)",
+            "de": "Temperatur (°C)",
+            "es": "Temperatura (°C)"
+          }
+        },
+        {
+          "key": "humidity",
+          "type": "number",
+          "label": {
+            "en": "Humidity (%)",
+            "fr": "Humidité (%)",
+            "de": "Luftfeuchtigkeit (%)",
+            "es": "Humedad (%)"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "air_quality",
+      "label": {
+        "en": "Air quality",
+        "fr": "Qualité de l'air",
+        "de": "Luftqualität",
+        "es": "Calidad del aire"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "Awair score as a gauge, CO2, PM2.5, temperature, humidity and the air quality band.",
+        "fr": "Score Awair en jauge, CO2, PM2.5, température, humidité et niveau de qualité de l'air.",
+        "de": "Awair-Score als Anzeige, CO2, PM2.5, Temperatur, Luftfeuchtigkeit und Luftqualitätsstufe.",
+        "es": "Puntuación Awair en indicador, CO2, PM2.5, temperatura, humedad y nivel de calidad del aire."
+      },
+      "icon": "wind",
+      "settings": [
+        {
+          "key": "sensor",
+          "type": "select",
+          "source": "devices",
+          "label": { "en": "Sensor", "fr": "Capteur", "de": "Sensor", "es": "Sensor" },
+          "required": true
+        }
+      ]
     }
   ]
 }

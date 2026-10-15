@@ -16,8 +16,9 @@ its only runtime dependency. It started from the official JavaScript template.
 ```bash
 npm install
 npm test                                  # node --test, the built-in runner
-node --test test/devices.test.js          # one file
-node --test --test-name-pattern "plug"    # tests whose name matches
+node --test test/hub.test.js              # one file
+node --test --test-name-pattern "lost"    # tests whose name matches
+node scripts/probe.mjs <ip> | --cloud     # read-only probe of a real sensor / the cloud API
 npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
 npm run format                            # Prettier, fix in place
@@ -31,16 +32,24 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
-src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+index.js                          SDK wiring only (registerHandlers + shutdown)
+src/app.js                        every SDK handler, the "Search for sensors" report
+src/hub.js                        sensor registry, discovery, own polling timer, lost/back events
+src/awair/local.js                Local API client (settings + /air-data/latest), read only
+src/awair/cloud.js                developer API client (quota, devices, latest), read only
+src/awair/model.js                API answers -> one normalized reading; models, score bands
+src/devices.js                    Gladys device and states of a sensor (category/type couples)
+src/discovery.js                  mDNS results (mediated by the core) -> Awair addresses
+src/widgets.js                    "air_quality" dashboard widget
+src/scenes.js                     "read_air_quality" scene action
+src/i18n.js                       every produced text, en/fr/de/es
+src/issues.js                     repeated failures logged once
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+scripts/probe.mjs                 read-only probe of a real sensor or of the cloud API
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
-test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys, same sections
+test/                             node --test, SDK fake Gladys + fake Awair (test/helpers/)
+test/fixtures/awair/              recorded Awair answers (anonymized), see its README
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +79,10 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in four languages (English, French, German with
+  "du", Spanish with "usted"): action messages, widget texts, feature names,
+  manifest texts, and `docs/{en,fr,de,es}.md` with the same sections.
+  `test/i18n.test.js` enforces it.
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -233,3 +244,42 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## Awair : API et pièges propres à cette intégration
+
+- **Local API** (HTTP, port 80, sans authentification), à activer capteur par capteur dans l'appli
+  Awair Home (Awair+ → Awair APIs → Local API). `GET /settings/config/data` donne `device_uuid`
+  (`awair-element_24947`), `fw_version`, et sur l'Omni `power-status` (`battery`, `plugged`) ; les
+  firmwares Omni récents servent `/settings/data` à la place (on essaie l'un puis l'autre sur 404).
+  `GET /air-data/latest` : objet plat, rafraîchi toutes les 10 s par le capteur. **Le fond de panier
+  Ethernet de l'Omni répond du JSON en `text/html`** : toujours lire le corps en texte puis
+  `JSON.parse`.
+- Valeurs « abs » contre estimées : `co2` avant `co2_est`, `pm10` avant `pm10_est`. Les clés
+  `*_baseline`, `voc_h2_raw`, `voc_ethanol_raw`, `abs_humid` sont ignorées.
+- **API cloud** (`https://developer-apis.awair.is/v1`, jeton Bearer) : réponse `{ data: [] }` =
+  capteur muet depuis 10 min. Quota journalier par portée (`LATEST`), lu dans `/users/self` ;
+  Hobbyist = 300/jour. 429 → une heure de pause. Le proxy des sessions de code refuse ce domaine :
+  `scripts/probe.mjs --cloud` est lancé par l'orchestrateur.
+- **Identifiant** : le `device_uuid` est le même en local et dans le cloud → `externalIds('awair',
+uuid)`. Un capteur vu des deux côtés est un seul appareil, lu en local.
+- **mDNS** : `_http._tcp`, nom d'instance qui commence par `AWAIR` (comme le `zeroconf` de Home
+  Assistant). Un `.local` ne se résout pas dans le conteneur : seule l'IPv4 relayée par le cœur sert.
+- Le **signal Wi-Fi** n'apparaît dans aucune réponse connue de la Local API : pas de fonctionnalité
+  signal tant qu'un retour utilisateur ne montre pas un champ réel.
+
+### Pièges du cœur découverts ici
+
+- **`airquality-sensor/aqi` est coloré comme un indice AQI** (bas = bon, `getAqiColor` du front) :
+  un score Awair de 95 s'afficherait orange. Le score est publié en `counter-sensor/integer`, et sa
+  tranche en `risk/integer` (0 vert, 1 jaune, 2 orange, libellés « Aucun / Faible / Moyen risque »
+  traduits par le front).
+- Le front décide d'afficher le nom de la fonctionnalité ou le libellé générique en comparant le
+  **seul `type`** (`shouldDisplayDeviceName`, `front/src/utils/device.js`), pas le couple : deux
+  fonctionnalités `integer` de catégories différentes affichent toutes deux leur nom.
+- Faux Gladys du SDK : l'ack d'une action de configuration est `{ data: { message } }`, celui
+  d'une action de scène `{ data: { outputs } }`. Le battement de `publishChangedStates` date avec
+  `Date.now()` : simuler `Date` (`t.mock.timers`) pour le tester, une horloge injectée ne suffit pas.
+- Le garde-fou allemand de `test/i18n.test.js` attrape aussi le « Sie » de la 3e personne du
+  pluriel (« Sie brauchen ») : reformuler (« Beide brauchen »).
+- `Intl.NumberFormat('fr')` groupe les milliers avec une espace fine insécable (U+202F) : dans une
+  phrase testée, `useGrouping: false`.
